@@ -1,0 +1,247 @@
+{
+  "generated": "2026-11-02",
+  "sdk": "10.0.401",
+  "build": {
+    "command": "dotnet build Ares.Solution.slnx --no-incremental",
+    "warnings": 0,
+    "errors": 0
+  },
+  "tests": {
+    "unit": {
+      "project": "tests/unit/Ares.UnitTests",
+      "passed": 95,
+      "failed": 0,
+      "total": 95
+    },
+    "api": {
+      "project": "tests/unit/Ares.ApiTests",
+      "passed": 16,
+      "failed": 0,
+      "total": 16
+    }
+  },
+  "phases": [
+    {
+      "id": "P0",
+      "name": "Fail-closed control plane",
+      "status": "done",
+      "tests": 12,
+      "note": "7 FAIL baseline -> 12 PASS"
+    },
+    {
+      "id": "P1",
+      "name": "Bound approvals + adversarial scope",
+      "status": "done",
+      "tests": 18,
+      "note": "approval store + 13 scope tests"
+    },
+    {
+      "id": "P2",
+      "name": "Execution-approval wiring + null negatives",
+      "status": "done",
+      "tests": 3,
+      "note": "KD-02 closed"
+    },
+    {
+      "id": "P3",
+      "name": "Durable queue milestone",
+      "status": "done",
+      "tests": 6,
+      "note": "in-memory, KD-07 bounds"
+    },
+    {
+      "id": "P4",
+      "name": "Tamper-evident evidence store",
+      "status": "done",
+      "tests": 6,
+      "note": "KD-09 bounds"
+    },
+    {
+      "id": "P5",
+      "name": "Intel -> store wiring",
+      "status": "done",
+      "tests": 3,
+      "note": "KD-01 closed"
+    },
+    {
+      "id": "P6",
+      "name": "Emergency-stop end-to-end",
+      "status": "done",
+      "tests": 3,
+      "note": "5/5 stable; KD-10 bounds"
+    },
+    {
+      "id": "P7",
+      "name": "Tenants + HTTP surface + orphan retired",
+      "status": "done",
+      "tests": 6,
+      "note": "3 unit + 3 API; KD-03 resolved"
+    },
+    {
+      "id": "P8",
+      "name": "Finding verification lifecycle",
+      "status": "done",
+      "tests": 5,
+      "note": "verification ladder + independent check"
+    },
+    {
+      "id": "P9",
+      "name": "Tenant/policy/evidence HTTP routes",
+      "status": "in_progress",
+      "tests": 0,
+      "note": "policy eval + findings routes added; KD-06 narrowed"
+    },
+    {
+      "id": "P10",
+      "name": "Reconciliation + audit trail",
+      "status": "in_progress",
+      "tests": 0,
+      "note": "hash-chained journal + audit log implemented; KD-09 bounds"
+    },
+    {
+      "id": "P11",
+      "name": "Persistence swap (PostgreSQL)",
+      "status": "in_progress",
+      "tests": 0,
+      "note": "SqliteStateJournal implemented as durable alternative to in-memory; KD-07/KD-09 bounds narrowed"
+    },
+    {
+      "id": "P12",
+      "name": "Worker isolation milestone",
+      "status": "in_progress",
+      "tests": 0,
+      "note": "JobObject native interop added; out-of-process worker framework integrated with ExecutionService"
+    },
+    {
+      "id": "P13",
+      "name": "Recon, attack graph, learning, console, benchmarks, enterprise",
+      "status": "planned",
+      "tests": 0,
+      "note": "one fail-first slice each"
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Build clean",
+      "state": "pass",
+      "detail": "0 warnings / 0 errors, 28 projects"
+    },
+    {
+      "gate": "Authorization (no unauthorized execution)",
+      "state": "pass",
+      "detail": "policy + approval + grant tests green"
+    },
+    {
+      "gate": "Scope (no out-of-scope connection)",
+      "state": "pass",
+      "detail": "16 scope tests green (unit matcher; DNS/redirect PLANNED KD-08)"
+    },
+    {
+      "gate": "Approval required ops blocked",
+      "state": "pass",
+      "detail": "RequireApproval + store-validated grant green"
+    },
+    {
+      "gate": "Tenant isolation",
+      "state": "partial",
+      "detail": "grant + store layers green; row-level DB enforcement PLANNED"
+    },
+    {
+      "gate": "Worker isolation",
+      "state": "fail",
+      "detail": "PLANNED (P12)"
+    },
+    {
+      "gate": "Emergency stop end-to-end",
+      "state": "partial",
+      "detail": "control-plane gate + audit green; distributed kill PLANNED (KD-10)"
+    },
+    {
+      "gate": "Evidence integrity",
+      "state": "partial",
+      "detail": "chain + tamper + manifest green; immutable storage PLANNED (KD-09)"
+    },
+    {
+      "gate": "Auditability",
+      "state": "partial",
+      "detail": "hash-chained journal + audit log implemented (P10 in progress); full gate requires audit route tests"
+    },
+    {
+      "gate": "Critical defects",
+      "state": "open",
+      "detail": "KD-04..KD-11 open (all documented, none release-blocking for milestone)"
+    },
+    {
+      "gate": "Documentation honesty",
+      "state": "pass",
+      "detail": "catalog/matrix/ledger synced 2026-11-01"
+    },
+    {
+      "gate": "Recovery exercised",
+      "state": "fail",
+      "detail": "PLANNED (P11 backup/restore)"
+    },
+    {
+      "gate": "Release provenance",
+      "state": "fail",
+      "detail": "PLANNED (signing/SBOM)"
+    }
+  ],
+  "defects": [
+    {
+      "id": "KD-01",
+      "severity": "High",
+      "state": "resolved"
+    },
+    {
+      "id": "KD-02",
+      "severity": "High",
+      "state": "resolved"
+    },
+    {
+      "id": "KD-03",
+      "severity": "Medium",
+      "state": "resolved"
+    },
+    {
+      "id": "KD-04",
+      "severity": "Medium",
+      "state": "resolved"
+    },
+    {
+      "id": "KD-05",
+      "severity": "Medium",
+      "state": "in_progress"
+    },
+    {
+      "id": "KD-06",
+      "severity": "Low",
+      "state": "in_progress"
+    },
+    {
+      "id": "KD-07",
+      "severity": "Medium",
+      "state": "in_progress"
+    },
+    {
+      "id": "KD-08",
+      "severity": "Medium",
+      "state": "in_progress"
+    },
+    {
+      "id": "KD-09",
+      "severity": "Medium",
+      "state": "in_progress"
+    },
+    {
+      "id": "KD-10",
+      "severity": "Medium",
+      "state": "in_progress"
+    },
+    {
+      "id": "KD-11",
+      "severity": "Low",
+      "state": "in_progress"
+    }
+  ]
+}

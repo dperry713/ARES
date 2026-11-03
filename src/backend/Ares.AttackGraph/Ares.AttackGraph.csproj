@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ares.Domain\Ares.Domain.csproj" />
+    <ProjectReference Include="..\Ares.Contracts\Ares.Contracts.csproj" />
+    <ProjectReference Include="..\Ares.Infrastructure\Ares.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

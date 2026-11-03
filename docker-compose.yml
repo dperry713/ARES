@@ -1,0 +1,48 @@
+# Local/self-hosted reference deployment for the ARES management plane.
+#
+#   cp deploy/ares.env.sample .env   # then set ARES_BOOTSTRAP_ADMIN_KEY to a strong secret
+#   docker compose up -d
+#   curl -fsS http://localhost:8080/health/ready
+#
+# TLS is expected to terminate in front of this service. The API is published
+# on the loopback interface only; put your ingress/reverse proxy on the same
+# host or network and remove the 127.0.0.1 binding deliberately.
+
+services:
+  ares-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${ARES_VERSION:-1.0.0}
+    image: ares-api:${ARES_VERSION:-1.0.0}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Behind a TLS-terminating proxy the request reaching the API is always
+      # HTTP, so the in-process redirect is disabled here on purpose.
+      Ares__Http__UseHttpsRedirection: "false"
+      ARES_DATA_DIR: /app/data
+      ARES_BOOTSTRAP_ADMIN_KEY: ${ARES_BOOTSTRAP_ADMIN_KEY:?set ARES_BOOTSTRAP_ADMIN_KEY in .env}
+      Ares__RateLimit__PermitPerMinute: ${ARES_RATE_LIMIT_PER_MINUTE:-240}
+    volumes:
+      - ares-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 20s
+
+volumes:
+  ares-data:

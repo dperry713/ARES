@@ -1,0 +1,55 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/ai/" />
+  <Folder Name="/src/ai/intelligence/">
+    <Project Path="src/ai/intelligence/Ares.Intelligence.csproj" />
+  </Folder>
+  <Folder Name="/src/ai/orchestrator/">
+    <Project Path="src/ai/orchestrator/Ares.Orchestrator.csproj" />
+  </Folder>
+  <Folder Name="/src/ai/planner/">
+    <Project Path="src/ai/planner/Ares.Planner.csproj" />
+  </Folder>
+  <Folder Name="/src/ai/providers/">
+    <Project Path="src/ai/providers/Ares.Providers.csproj" />
+  </Folder>
+  <Folder Name="/src/ai/schemas/">
+    <Project Path="src/ai/schemas/Ares.Schemas.csproj" />
+  </Folder>
+  <Folder Name="/src/ai/tests/">
+    <Project Path="src/ai/tests/Ares.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/backend/">
+    <Project Path="src/backend/Ares.Api/Ares.Api.csproj" />
+    <Project Path="src/backend/Ares.Application/Ares.Application.csproj" />
+    <Project Path="src/backend/Ares.Approvals/Ares.Approvals.csproj" />
+    <Project Path="src/backend/Ares.AttackGraph/Ares.AttackGraph.csproj" />
+    <Project Path="src/backend/Ares.Contracts/Ares.Contracts.csproj" />
+    <Project Path="src/backend/Ares.Domain/Ares.Domain.csproj" />
+    <Project Path="src/backend/Ares.Engagements/Ares.Engagements.csproj" />
+    <Project Path="src/backend/Ares.Evidence/Ares.Evidence.csproj" />
+    <Project Path="src/backend/Ares.Execution/Ares.Execution.csproj" />
+    <Project Path="src/backend/Ares.Identity/Ares.Identity.csproj" />
+    <Project Path="src/backend/Ares.Infrastructure/Ares.Infrastructure.csproj" />
+    <Project Path="src/backend/Ares.Intelligence/Ares.Intelligence.csproj" />
+    <Project Path="src/backend/Ares.Learning/Ares.Learning.csproj" />
+    <Project Path="src/backend/Ares.Notifications/Ares.Notifications.csproj" />
+    <Project Path="src/backend/Ares.Policy/Ares.Policy.csproj" />
+    <Project Path="src/backend/Ares.Recon/Ares.Recon.csproj" />
+    <Project Path="src/backend/Ares.Reporting/Ares.Reporting.csproj" />
+    <Project Path="src/backend/Ares.Verification/Ares.Verification.csproj" />
+  </Folder>
+  <Folder Name="/src/runtime/" />
+  <Folder Name="/src/runtime/module-host/">
+    <Project Path="src/runtime/module-host/Ares.ModuleHost.csproj" />
+  </Folder>
+  <Folder Name="/src/runtime/network-policy/">
+    <Project Path="src/runtime/network-policy/Ares.NetworkPolicy.csproj" />
+  </Folder>
+  <Folder Name="/src/runtime/sandbox/">
+    <Project Path="src/runtime/sandbox/Ares.Sandbox.csproj" />
+  </Folder>
+  <Folder Name="/src/runtime/worker/">
+    <Project Path="src/runtime/worker/Ares.Worker.csproj" />
+  </Folder>
+</Solution>

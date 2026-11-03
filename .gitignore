@@ -1,0 +1,35 @@
+# Build output
+bin/
+obj/
+artifacts/
+TestResults/
+*.coverage
+coverage*.xml
+*.trx
+
+# Local runtime state (the durable journal) must never be committed
+data/
+*.journal.db
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets
+.env
+.env.*
+!deploy/ares.env.sample
+*.pfx
+*.pem
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+Thumbs.db
+.DS_Store
+
+# Tooling caches
+.packages/
+tools/

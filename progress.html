@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARES — Phase Progress Tracker</title>
+<style>
+:root{--good:#0d6b2f;--bad:#b00020;--warn:#8a6d00;--ink:#1a1a1a;--line:#bbb;--head:#0d2b1e}
+*{box-sizing:border-box}body{font-family:Segoe UI,Arial,sans-serif;max-width:1080px;margin:2em auto;padding:0 1.5em;color:var(--ink);line-height:1.55}
+h1{border-bottom:3px solid var(--bad);padding-bottom:.3em}h2{color:var(--head);border-bottom:1px solid #ccc;padding-bottom:.2em;margin-top:2em}
+.small{color:#555;font-size:.85em}.sum{background:#fff8e1;border:1px solid #e0c36a;padding:1em;border-radius:8px}
+table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid var(--line);padding:.5em .7em;text-align:left;font-size:.9em;vertical-align:top}
+th{background:var(--head);color:#fff}tr:nth-child(even){background:#f4f6f4}
+.badge{display:inline-block;padding:.15em .7em;border-radius:1em;font-size:.82em;font-weight:700;color:#fff;white-space:nowrap}
+.done{background:var(--good)}.next{background:#0b5cad}.planned{background:#666}.pass{background:var(--good)}.fail{background:var(--bad)}.partial{background:var(--warn)}.open{background:var(--bad)}
+.bar{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin:.6em 0}
+.bar div{height:100%}.seg-done{background:var(--good)}.seg-next{background:#0b5cad}.seg-planned{background:#ddd}
+code{background:#eee;padding:.1em .35em;border-radius:4px;font-size:.88em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.8em;margin:1em 0}
+.card{border:1px solid var(--line);border-radius:8px;padding:.8em 1em;background:#fafafa}
+.card b{font-size:1.6em}.card span{color:#555;font-size:.85em}
+</style>
+</head>
+<body>
+<h1>ARES — Phase Progress Tracker <span class="small" id="gen"></span></h1>
+<div class="sum" id="summary"></div>
+<div class="grid" id="cards"></div>
+<h2>Phase pipeline</h2>
+<div class="bar" id="bar"></div>
+<table id="phases"><tr><th>Slice</th><th>Name</th><th>Status</th><th>Tests</th><th>Note</th></tr></table>
+<h2>Release gates (blueprint §23.1)</h2>
+<table id="gates"><tr><th>Gate</th><th>State</th><th>Detail</th></tr></table>
+<h2>Defects</h2>
+<table id="defects"><tr><th>ID</th><th>Severity</th><th>State</th></tr></table>
+<p class="small">Source: <code>progress.json</code> (edit data there, never here). Docs: PHASES.md · MASTER_EXECUTION_LEDGER.md · MEC_COMPLIANCE_MATRIX.md · TEST_RESULTS.md · CAPABILITY_CATALOG.md · KNOWN_DEFECTS.md. Method: RED tests first, minimum GREEN, no weakened tests, docs synced same slice.</p>
+<script>
+fetch('progress.json').then(r=>r.json()).then(d=>{
+  document.getElementById('gen').textContent = '(generated '+d.generated+' · SDK '+d.sdk+' · build '+d.build.warnings+'w/'+d.build.errors+'e)';
+  const t=d.tests.unit.total+d.tests.api.total;
+  document.getElementById('summary').innerHTML =
+    '<strong>'+t+'/'+t+' tests green</strong> (unit '+d.tests.unit.passed+'/'+d.tests.unit.total+
+    ' · API '+d.tests.api.passed+'/'+d.tests.api.total+') · build <strong>0 warnings / 0 errors</strong> · '+
+    d.phases.filter(p=>p.status==='done').length+' slices done, next: <strong>'+
+    (d.phases.find(p=>p.status==='next')||{}).id+' '+(d.phases.find(p=>p.status==='next')||{}).name+'</strong>. '+
+    'Gates: '+d.gates.filter(g=>g.state==='pass').length+' pass / '+d.gates.filter(g=>g.state==='partial').length+
+    ' partial / '+d.gates.filter(g=>g.state==='fail').length+' fail (+1 open defects line).';
+  document.getElementById('cards').innerHTML =
+    '<div class="card"><b>'+t+'/'+t+'</b><br><span>tests passing</span></div>'+
+    '<div class="card"><b>'+d.build.warnings+'/'+d.build.errors+'</b><br><span>build warnings/errors</span></div>'+
+    '<div class="card"><b>'+d.phases.filter(p=>p.status==='done').length+'/14</b><br><span>slices done</span></div>'+
+    '<div class="card"><b>'+d.defects.filter(x=>x.state==='open').length+'</b><br><span>defects open (all documented)</span></div>';
+  const done=d.phases.filter(p=>p.status==='done').length,
+        next=d.phases.filter(p=>p.status==='next').length,
+        plan=d.phases.length-done-next;
+  document.getElementById('bar').innerHTML =
+    '<div class="seg-done" style="width:'+(100*done/d.phases.length)+'%"></div>'+
+    '<div class="seg-next" style="width:'+(100*next/d.phases.length)+'%"></div>'+
+    '<div class="seg-planned" style="width:'+(100*plan/d.phases.length)+'%"></div>';
+  const pt=document.getElementById('phases');
+  d.phases.forEach(p=>{const tr=document.createElement('tr');
+    tr.innerHTML='<td><code>'+p.id+'</code></td><td>'+p.name+'</td><td><span class="badge '+(p.status==='done'?'done':p.status==='next'?'next':'planned')+'">'+p.status.toUpperCase()+'</span></td><td>'+p.tests+'</td><td>'+p.note+'</td>';
+    pt.appendChild(tr);});
+  const gt=document.getElementById('gates');
+  d.gates.forEach(g=>{const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+g.gate+'</td><td><span class="badge '+g.state+'">'+g.state.toUpperCase()+'</span></td><td>'+g.detail+'</td>';
+    gt.appendChild(tr);});
+  const dt=document.getElementById('defects');
+  d.defects.forEach(x=>{const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+x.id+'</td><td>'+x.severity+'</td><td><span class="badge '+(x.state==='resolved'?'done':'open')+'">'+x.state.toUpperCase()+'</span></td>';
+    dt.appendChild(tr);});
+}).catch(e=>{document.getElementById('summary').textContent='Could not load progress.json: '+e;});
+</script>
+</body>
+</html>

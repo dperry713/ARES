@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ares.Domain\Ares.Domain.csproj" />
+    <ProjectReference Include="..\Ares.Approvals\Ares.Approvals.csproj" />
+    <ProjectReference Include="..\Ares.Engagements\Ares.Engagements.csproj" />
+    <ProjectReference Include="..\Ares.Policy\Ares.Policy.csproj" />
+    <ProjectReference Include="..\Ares.Infrastructure\Ares.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

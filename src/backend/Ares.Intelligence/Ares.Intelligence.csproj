@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ares.Domain\Ares.Domain.csproj" />
+    <ProjectReference Include="..\Ares.Contracts\Ares.Contracts.csproj" />
+    <ProjectReference Include="..\Ares.Policy\Ares.Policy.csproj" />
+    <ProjectReference Include="..\..\ai\providers\Ares.Providers.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ares.Evidence\Ares.Evidence.csproj" />
+  </ItemGroup>
+
+</Project>

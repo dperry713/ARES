@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARES — Audit Baseline Report (Interim)</title>
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;max-width:960px;margin:2em auto;padding:0 1.5em;color:#1a1a1a;line-height:1.55}
+h1{border-bottom:3px solid #b00020;padding-bottom:.3em}
+h2{color:#0d2b1e;border-bottom:1px solid #ccc;padding-bottom:.2em;margin-top:2em}
+.badge{display:inline-block;padding:.15em .6em;border-radius:1em;font-size:.85em;font-weight:700;color:#fff}
+.bad{font-weight:700;color:#b00020}.good{font-weight:700;color:#0d6b2f}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #bbb;padding:.5em .7em;text-align:left;font-size:.92em}
+th{background:#0d2b1e;color:#fff}
+tr:nth-child(even){background:#f4f6f4}
+code{background:#eee;padding:.1em .35em;border-radius:4px;font-size:.9em}
+.sum{background:#fff8e1;border:1px solid #e0c36a;padding:1em;border-radius:8px}
+pre{background:#111;color:#d6ffd6;padding:1em;border-radius:8px;overflow-x:auto;font-size:.85em}
+.small{color:#555;font-size:.85em}
+</style>
+</head>
+<body>
+<h1>ARES — Audit Baseline Report <span class="small">(INTERIM — work in progress)</span></h1>
+<p><strong>Date:</strong> 2026-11-01 &nbsp;|&nbsp; <strong>Auditor:</strong> master developer (evidence-driven) &nbsp;|&nbsp; <strong>Baseline:</strong> blueprint.md + MEC.md vs actual repo</p>
+<div class="sum">
+<strong>Bottom line:</strong> The repo does <span class="bad">NOT</span> meet the gold-standard criteria yet.
+Build passes (verified, 0 warnings / 0 errors, 28 projects). A new P0 fail-closed test suite
+(<code>tests/unit/Ares.UnitTests</code>, 10 tests) proves the gaps: <span class="bad"><strong>7 FAIL / 3 PASS at baseline &rarr; 12/12 after P0 &rarr; 30/30 after P1 &rarr; 33/33 after P2 &rarr; 39/39 after P3 &rarr; 45/45 after P4 &rarr; 48/48 after P5 &rarr; 51/51 after P6 &rarr; 62/62 after P8 (HTTP surface + tenants)</strong></span>.
+Failures are real authorization/safety violations, not test bugs. Fixes below are now IMPLEMENTED (same session): fail-closed PolicyEngine + real scope matching (hostname/subdomain/CIDR + exclusion-wins + e-stop latch), strict engagement transitions, trackable execution contract with Approved gate, GET-verb fix, null-engagement fail-closed, fabricated-TenantId removed. Re-run: solution build 0 warnings/0 errors; <code>dotnet test tests/unit/Ares.UnitTests</code> <strong>12/12 PASS</strong>. No test was weakened. Docs synced: TEST_RESULTS.md, CAPABILITY_CATALOG.md, KNOWN_DEFECTS.md. Remaining P0-adjacent work (approval store, worker isolation, persistence, full API, E2E) stays PLANNED — see catalog.
+</div>
+
+<h2>1. Verified baselines</h2>
+<table>
+<tr><th>Baseline</th><th>Result (executed, not asserted)</th></tr>
+<tr><td>Build</td><td><span class="good">PASS</span> — <code>dotnet build Ares.Solution.slnx</code>: 0 warnings, 0 errors</td></tr>
+<tr><td>P0 fail-closed suite (new)</td><td><span class="bad">7 failed / 3 passed / 10 total</span> — <code>dotnet test tests/unit/Ares.UnitTests</code></td></tr>
+<tr><td>Prior test suites</td><td>NONE EXIST — <code>tests/{unit,integration,contract,security,architecture,performance,resilience}</code> are all empty dirs; <code>src/frontend/{src,e2e}</code>, <code>modules/*</code>, <code>policies/*</code>, <code>benchmarks/*</code>, <code>deploy/*</code>, <code>docs/*</code>, <code>scripts/</code>, <code>.github/workflows</code> are empty</td></tr>
+</table>
+
+<h2>2. Proven gaps (each tied to a failing test or inspected file)</h2>
+<table>
+<tr><th>#</th><th>MEC / Blueprint clause</th><th>Gap (observed)</th><th>Evidence</th></tr>
+<tr><td>G1</td><td>MEC §10.1 checks 1+2; blueprint §4.4</td><td>PolicyEngine <strong>Permits</strong> execution for engagement in <code>Authorized</code> but not <code>Active</code> (check 1 passes, check 2 dead code)</td><td>Test FAIL: <code>EvaluateAsync_authorized_but_not_active_must_not_permit</code> — got <code>Permit</code></td></tr>
+<tr><td>G2</td><td>MEC §10.2/§10.3; blueprint §4.5</td><td>Approval-gated operation without any approval object still Permits ("simplified: always permit")</td><td>Test FAIL: <code>EvaluateAsync_requires_approval_without_approval_must_not_permit</code></td></tr>
+<tr><td>G3</td><td>Blueprint §4.3 (scope/bypass)</td><td><code>EvaluateScopeAsync</code> Permits everything when scope text is non-empty — excluded targets, out-of-scope hosts not checked</td><td>Tests FAIL: excluded + out-of-scope targets permitted</td></tr>
+<tr><td>G4</td><td>MEC §6.2; §15.7</td><td><code>ExecutionService.ProposeAsync</code> returns only state, discards execution id — approvals can never be bound; queue/cancel/get unreachable</td><td>Marker test FAILs by design until contract fixed; <code>IExecutionService</code> has no handle</td></tr>
+<tr><td>G5</td><td>MEC §6.2</td><td><code>EngagementService</code> allows any transition (Draft→Paused, Draft→Start, resume Active, re-authorize Completed)</td><td>Tests FAIL: 3 invalid transitions accepted</td></tr>
+<tr><td>G6</td><td>MEC §15.2 vs API_REFERENCE.md</td><td><code>Program.cs</code> exposes <code>POST /engagements/{id}</code> for GET (wrong verb) and omits tenants/policy/executions/findings/approvals routes the API_REFERENCE claims</td><td>File inspection, 2026-11-01</td></tr>
+<tr><td>G7</td><td>MEC §5 (no placeholders)</td><td>23 of 27 service projects are <code>Class1.cs</code> shells; orphan <code>src/ai/Orchestrator.cs</code> never compiled (broken refs); <code>IntelligenceService</code> hardcodes EPSS 0.5, 2 CVEs, null scope target</td><td>File inspection + build graph</td></tr>
+<tr><td>G8</td><td>Docs honesty (agents.md §3)</td><td><code>IMPLEMENTATION_STATUS.md</code>/<code>SKILL_INVENTORY.md</code> label in-memory stubs IMPLEMENTED_AND_VERIFIED (no DB, no Redis pkgs, no OPA, no tests existed)</td><td>Diff vs csproj + empty tests/</td></tr>
+</table>
+
+<h2>3. Requirement → Code → Test → Evidence (excerpt)</h2>
+<table>
+<tr><th>Requirement</th><th>Code</th><th>Test</th><th>Evidence (2026-11-01)</th></tr>
+<tr><td>MEC §10.1 fail-closed policy</td><td><code>Ares.Policy/Services/PolicyEngine.cs</code></td><td>5 policy tests</td><td>4 FAIL / 1 PASS — NOT MET</td></tr>
+<tr><td>MEC §6.2 engagement lifecycle</td><td><code>Ares.Engagements/EngagementService.cs</code></td><td>4 lifecycle tests</td><td>3 FAIL / 1 PASS — NOT MET</td></tr>
+<tr><td>MEC §6.2/§10.3 execution+approval</td><td><code>Ares.Execution/Services/ExecutionService.cs</code></td><td>1 contract-gap marker</td><td>FAILs (documents gap) — NOT MET</td></tr>
+<tr><td>MEC §15.2 engagement API</td><td><code>Ares.Api/Program.cs</code></td><td>none yet</td><td>PARTIAL (wrong verb, 6 routes only)</td></tr>
+<tr><td>MEC §5 real implementations</td><td>23 × <code>Class1.cs</code></td><td>n/a</td><td>SIMULATED/PLANNED — correctly labeled in this report</td></tr>
+</table>
+
+<h2>4. Raw test output (verbatim tail)</h2>
+<pre>Failed Ares.UnitTests...EvaluateAsync_authorized_but_not_active_must_not_permit
+  Error: MEC §10.1 checks 1+2: Authorized-but-not-Active engagement must not be Permitted (got Permit).
+Failed! - Failed: 7, Passed: 3, Skipped: 0, Total: 10, Duration: ~100 ms - Ares.UnitTests.dll (net10.0)</pre>
+
+<h2>5. What comes next (in order)</h2>
+<ol>
+<li>Fix P0 without weakening tests: fail-closed PolicyEngine + real scope matching; valid-transition-only lifecycle services; execution contract returning a trackable handle with <code>Approved</code> state; correct API verb + missing routes.</li>
+<li>Re-run <code>dotnet build</code> + <code>dotnet test</code>; record full outputs into <code>TEST_RESULTS.md</code>.</li>
+<li>Reclassify capabilities honestly (<code>IMPLEMENTED_AND_VERIFIED</code> only with passing-test evidence) and sync <code>IMPLEMENTATION_STATUS.md</code>, ledger, <code>KNOWN_DEFECTS.md</code>, <code>RISK_REGISTER.md</code>.</li>
+<li>Report release readiness against the §23.1 non-negotiable gates — currently <span class="bad">NOT READY</span>.</li>
+</ol>
+<p class="small">Method: document intent → prove the gap with failing tests → implement minimum fix → prove the pass → synchronize docs. Accuracy over speed; no mocked results presented as real.</p>
+</body>
+</html>

@@ -1,0 +1,126 @@
+name: CI
+
+# Actions are pinned to immutable commits. When bumping a pin, resolve the new
+# commit with `git ls-remote https://github.com/<org>/<repo> refs/tags/<tag>`
+# and update the trailing comment with the tag it corresponds to.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  CI: 'true'
+
+jobs:
+  build-test:
+    name: Build, test, coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Ares.Solution.slnx
+
+      - name: Build (warnings are errors in CI)
+        run: dotnet build Ares.Solution.slnx --configuration Release --no-restore --no-incremental
+
+      - name: Unit tests
+        run: dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj --configuration Release --no-build --logger "trx;LogFileName=unit.trx" --results-directory artifacts/test-results/unit
+
+      - name: API tests
+        run: dotnet test tests/unit/Ares.ApiTests/Ares.ApiTests.csproj --configuration Release --no-build --logger "trx;LogFileName=api.trx" --results-directory artifacts/test-results/api
+
+      - name: Coverage gate
+        run: pwsh -NoProfile -File scripts/Invoke-Coverage.ps1 -Configuration Release -ResultsDirectory artifacts/coverage
+
+      - name: Dependency vulnerability audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet list Ares.Solution.slnx package --vulnerable --include-transitive > artifacts/vulnerable-packages.txt
+          cat artifacts/vulnerable-packages.txt
+          if grep -qi 'has the following vulnerable packages' artifacts/vulnerable-packages.txt; then
+            echo '::error::Vulnerable NuGet packages detected; see artifacts/vulnerable-packages.txt'
+            exit 1
+          fi
+
+      - name: Release build (artifacts + manifest)
+        run: pwsh -NoProfile -File scripts/Build-Release.ps1 -Version "1.0.${{ github.run_number }}" -RuntimeIdentifiers linux-x64 -OutputDirectory artifacts/release
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verification-evidence
+          path: |
+            artifacts/test-results/**
+            artifacts/coverage/coverage-summary.json
+            artifacts/release/release-manifest.json
+            artifacts/release/SHA256SUMS.txt
+            artifacts/vulnerable-packages.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  container:
+    name: Container build and runtime probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Build image
+        run: docker build --tag ares-api:ci --build-arg VERSION=1.0.0 .
+
+      - name: Run image and probe health endpoints
+        run: |
+          set -euo pipefail
+          docker run --detach --name ares-ci \
+            --publish 127.0.0.1:8080:8080 \
+            --env ASPNETCORE_ENVIRONMENT=Production \
+            --env ARES_BOOTSTRAP_ADMIN_KEY=ci-bootstrap-credential-0123456789abcdef \
+            ares-api:ci
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8080/health/ready > /dev/null; then
+              echo "ready after ${attempt} attempts"
+              break
+            fi
+            sleep 2
+            if [ "$attempt" -eq 40 ]; then
+              docker logs ares-ci
+              exit 1
+            fi
+          done
+          curl -fsS http://127.0.0.1:8080/health/live
+          status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/system/info)
+          echo "unauthenticated system/info -> $status"
+          test "$status" = "401"
+          curl -fsS -H "X-Ares-Api-Key: ci-bootstrap-credential-0123456789abcdef" \
+            http://127.0.0.1:8080/api/v1/system/info
+
+      - name: Container logs
+        if: always()
+        run: docker logs ares-ci || true
+
+      - name: Stop container
+        if: always()
+        run: docker rm --force ares-ci || true

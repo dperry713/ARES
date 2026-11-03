@@ -1,0 +1,36 @@
+# Build output
+**/bin/
+**/obj/
+artifacts/
+.packages/
+TestResults/
+
+# Source control / editor
+.git/
+.gitignore
+.github/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Local state that must never enter an image
+data/
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
+
+# Docs and retired material do not affect the image
+docs/
+.retired/
+benchmarks/
+*.md
+!LICENSE
+
+# Test assets are not part of the runtime image
+tests/
+src/ai/tests/
