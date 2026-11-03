@@ -11,7 +11,7 @@ namespace Ares.Evidence.Services;
 /// Survives restarts and supports multi-instance deployments.
 /// Blueprint §6.4, MEC §13 compliance.
 /// </summary>
-public sealed class PostgresEvidenceService
+public sealed class PostgresEvidenceService : IEvidenceService
 {
     private readonly string _connectionString;
 
@@ -19,6 +19,26 @@ public sealed class PostgresEvidenceService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         _connectionString = connectionString;
+
+        // Ensure schema exists on first use (best-effort; admin should run migrations in production)
+        using var conn = new NpgsqlConnection(_connectionString);
+        conn.OpenAsync().GetAwaiter().GetResult();
+        using var cmd = new NpgsqlCommand(@"
+            CREATE TABLE IF NOT EXISTS evidence_records (
+                id UUID PRIMARY KEY,
+                tenant_id UUID NOT NULL,
+                engagement_id UUID NOT NULL,
+                execution_id UUID,
+                evidence_type TEXT NOT NULL,
+                sha256 CHAR(64) NOT NULL,
+                record_hash CHAR(64) NOT NULL,
+                previous_hash CHAR(64),
+                collected_at TIMESTAMPTZ NOT NULL,
+                sequence BIGINT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_evidence_tenant ON evidence_records (tenant_id, engagement_id, sequence);
+            CREATE INDEX IF NOT EXISTS idx_evidence_engagement ON evidence_records (engagement_id, tenant_id, sequence);", conn);
+        cmd.ExecuteNonQueryAsync().GetAwaiter().GetResult();
     }
 
     public async Task<DomainEvidence> IngestAsync(Guid tenantId, Guid engagementId, Guid executionId,

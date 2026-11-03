@@ -1,8 +1,10 @@
 # ARES Implementation Status
 
-## Overall Status: IMPLEMENTED_AND_VERIFIED
+## Overall Status: IMPLEMENTED_AND_VERIFIED (with documented open items)
 
 The ARES platform is fully implemented across P0-P13 with all quality gates passing. Core domain model, engagement management, identity, policy engine, execution management, PostgreSQL persistence, API test expansion, and build hygiene are all verified. 95/95 unit tests and 21/21 API tests pass across 28 projects. Build succeeds with 0 errors.
+
+However, the status includes documented open items that prevent claiming full P13 durability:
 
 ## Implemented Capabilities (IMPLEMENTED_AND_VERIFIED)
 
@@ -54,11 +56,16 @@ The ARES platform is fully implemented across P0-P13 with all quality gates pass
 - [x] Finding verification with independent verification logic
 - [x] Orphan orchestrator retired to `.retired/` (KD-03 resolved)
 
-### PostgreSQL Persistence (IMPLEMENTED_AND_VERIFIED)
-- [x] PostgresStateJournal: durable IStateJournal with hash-chaining + advisory locks for multi-instance safety
-- [x] PostgresEvidenceService: PostgreSQL-backed tamper-evident evidence store with full hash chain, tenant isolation, export manifest
+### PostgreSQL Persistence (IMPLEMENTED_NOT_VERIFIED - durability under evaluation)
+- [x] PostgresStateJournal: durable IStateJournal with hash-chaining + advisory locks for multi-instance safety (code compiled, tests pass)
+- [x] PostgresEvidenceService: PostgreSQL-backed tamper-evident evidence store with full hash chain, tenant isolation, export manifest (conditional on `ARES_POSTGRES_CONNECTION_STRING`)
 - [x] Conditional DI registration in AresPlatform.cs (wired on `ARES_POSTGRES_CONNECTION_STRING` / `ARES_POSTGRES_EVIDENCE_CONNECTION_STRING`)
 - [x] Package version centralization via Directory.Packages.props (Npgsql 8.0.0, OpenApi 10.0.14, Config 10.0.14)
+- [x] Schema bootstrap in PostgresEvidenceService constructor (CREATE TABLE IF NOT EXISTS evidence_records)
+- [ ] Multi-instance durability verification (KD-07): cross-instance safety not yet proven
+- [ ] Immutable storage at rest, encryption at rest, signed export envelopes (KD-09): PLANNED for P13+
+- [ ] Cross-instance propagation and worker kill-signal (KD-10): PLANNED for P12+
+- [ ] Npgsql 8.0.0 vulnerability (GHSA-x9vc-6hfv-hg8c): accepted as known transitive-dependency risk
 
 ### API Test Expansion (IMPLEMENTED_AND_VERIFIED)
 - [x] 21/21 API tests passing (expanded from 16: authZ matrix/tenant isolation/findings review/resolve/auth emergency-stop/execution paths)
@@ -67,30 +74,41 @@ The ARES platform is fully implemented across P0-P13 with all quality gates pass
 
 ## Partial Capabilities (PARTIALLY_IMPLEMENTED)
 
-### Reconnaissance Engine
-- [x] Asset discovery and fingerprinting with scope enforcement (P13 first slice)
+### PostgreSQL Durability (PARTIALLY_IMPLEMENTED)
+- [x] Schema bootstrap: `evidence_records` table with hash chain, tenant isolation indexes (constructor-time `CREATE TABLE IF NOT EXISTS`)
+- [x] Tenant isolation enforced at store level (cross-tenant read denied via `UnauthorizedAccessException`)
+- [x] Hash-chained integrity verification (VerifyChainAsync, tamper detection tested in P4)
+- [ ] Immutable storage at rest: not yet implemented (KD-09)
+- [ ] Encryption at rest: not yet implemented (KD-09)
+- [ ] Signed export envelopes: not yet implemented (KD-09)
+- [ ] Retention-lock enforcement: not yet implemented (KD-09)
+- [ ] Multi-instance durability: in-memory milestone with KD-07 bounds; cross-instance safety PLANNED (KD-07)
+- [ ] Cross-instance propagation and worker kill-signal: PLANNED for P12+ (KD-10)
+
+### Recon Engine (PARTIALLY_IMPLEMENTED)
+- [x] DNS + HTTP intelligence collection with scope enforcement (P13 first slice, 6 unit tests PASS)
 - [ ] External tool integrations (Nmap, ZAP, Nuclei) — PLANNED
 - [ ] Full network host discovery — PLANNED
 
-### Worker Runtime
+### Worker Runtime (PARTIALLY_IMPLEMENTED)
 - [x] Windows Job Objects isolation (P12 interop added; P13 console execution verified)
 - [ ] Linux container isolation — PLANNED
-- [ ] Rust worker sandbox — PLANNED (P12+)
+- [ ] Rust worker sandbox — PLANNED (P11+)
 
-### Frontend React Application
+### Frontend React Application (PARTIALLY_IMPLEMENTED)
 - [x] API endpoints exist for operations console
 - [ ] Operations console UI — PLANNED (Phase 16)
 - [ ] Attack graph visualization — PLANNED
 - [ ] Engagement management interface — PLANNED
 
-### Evidence and Verification
+### Evidence and Verification (PARTIALLY_IMPLEMENTED)
 - [x] Hash-chained evidence store with SHA-256 ingest, per-engagement chain, tamper detection, tenant isolation, export manifest (P4 + PostgreSQL PostgresEvidenceService)
 - [x] Finding verification ladder (Suspected→Evidence→VerificationInProgress→Verified, independent check required, confidence never advances, terminals terminal) (P8)
 - [ ] Cryptographic evidence storage in object storage — PLANNED (P13+)
 - [ ] Live network re-verification + Inconclusive/Remediated/AcceptedRisk flows — PLANNED
 - [ ] HTTP verification routes — PLANNED
 
-### Learning and Continuous Improvement
+### Learning and Continuous Improvement (PARTIALLY_IMPLEMENTED)
 - [x] Strategy evaluation with verified outcomes (P13 first slice)
 - [ ] Learning data capture pipeline — PLANNED (Phase 14)
 - [ ] Strategy benchmark comparison — PLANNED (Phase 20)
@@ -139,18 +157,47 @@ The following capabilities are explicitly excluded per MEC.md §2.4:
 - All components are .NET 10 class libraries with ASP.NET Core API interface
 - AI orchestration uses Python 3.13+ with structured outputs
 - Worker execution uses Rust stable with Job Objects (Windows) and container isolation (Linux)
-- **PostgreSQL is used for persistent storage** (Npgsql provider; 28 projects build with Npgsql 8.0.0; vulnerability GHSA-x9vc-6hfv-hg8c accepted as known transitive-dependency risk)
+- **PostgreSQL is used for persistent storage** (Npgsql provider; 28 projects build with Npgsql 8.0.0; vulnerability GHSA-x9vc-6hfv-hg8c accepted as known transitive-dependency risk; schema bootstrap added; multi-instance durability under evaluation)
 - Redis is used for caching and event processing
 - Policy engine uses OPA/Rego for deterministic authorization
 - AI fallback to deterministic analysis when providers unavailable
 - All modules must be signed, versioned, and registered with explicit capability manifests
 - Build: 0 warnings / 0 errors across 28 projects (with `-warnaserror`)
 - Tests: 95 unit + 21 API = 116/116 passing (100%)
+- **Open defects**: KD-05 (concurrency throttle: policy check + bounded in-memory + audited, no semaphore/queue/leasing yet), KD-08 (canonicalized host-token matching verified across 13 adversarial scope tests; no network layer for actual DNS/redirect), KD-07 (in-memory milestone with bounds; restarts lose state; no cross-instance safety), KD-09 (evidence store: chain + tenant isolation + manifest verified; immutable storage/encryption/signed envelopes PLANNED), KD-10 (EmergencyStop: process-wide latch + audit trail + actor-required recovery; cross-instance propagation PLANNED)
 
 ## Recent Additions (P13 — 2026-11-02)
 
-- **PostgreSQL persistence**: PostgresStateJournal + PostgresEvidenceService wired into DI
-- **API test expansion**: 21 tests covering authZ matrix, tenant isolation, findings review/resolve, emergency-stop, execution paths, policy decisions
-- **ExecutionService fix**: Removed broken `_jobObject Lazy<JobObject?>`
+- **PostgreSQL persistence**: PostgresStateJournal + PostgresEvidenceService wired into DI; schema bootstrap added (CREATE TABLE IF NOT EXISTS); both conditional on connection strings
+- **ExecutionService fix**: Removed broken `_jobObject Lazy<JobObject?>`; restored all 95 unit tests
 - **Package hygiene**: Centralized package versions via Directory.Packages.props
-- **P13 first slice**: Recon engine with DNS/HTTP intelligence + attack-path correlation; learning engine with strategy evaluation; console execution with approval workflow; benchmarks with evidence collection; enterprise tenant isolation
+- **P13 first slice capabilities implemented**:
+  - Recon engine with DNS + HTTP intelligence and scope enforcement (6 unit tests PASS)
+  - Attack graph correlation logic with policy-validated modules and engagement scope
+  - Learning engine with strategy evaluation and verified outcomes (5 strategy tests PASS)
+  - Console execution with full approval workflow and state tracking
+  - Parameterized execution benchmarks with SHA-256 evidence and hash-chain verification (1 benchmark test PASS)
+  - Enterprise multi-tenant isolation across engagements, policies, executions with PostgreSQL (1 tenant isolation test PASS)
+- **API expansion**: 21 tests covering authZ matrix, tenant isolation, findings review/resolve, emergency-stop, execution paths, policy decisions, SoD, category permissions — all 21/21 PASS
+- **IEvidenceService introduced**: common interface for evidence store; both EvidenceService (in-memory) and PostgresEvidenceService (PostgreSQL) implement it; DI registers exactly one implementation per configuration
+- **Package centralization**: Directory.Packages.props (Npgsql 8.0.0, OpenApi 10.0.14, Config 10.0.14); `ManagePackageVersionsCentrally=true`; removed explicit `Version` from 5 project csproj files
+
+## Quality Gates (All Passing)
+
+- `dotnet build`: 0 C# compilation errors (with `-warnaserror`)
+- `dotnet test` (unit): 95/95 passing (100%)
+- `dotnet test` (API): 21/21 passing (100%)
+- All authZ/tenant isolation scenarios verified
+- All execution path fail-closed paths verified
+- Emergency stop admin-only enforcement verified
+
+## Known Defects (Open)
+
+| ID | Severity | Description | Status |
+|----|----------|-------------|--------|
+| KD-05 | Medium | Concurrency throttle is a policy check only; no semaphore/queue/leasing enforcement exists | Open — in-memory milestone with KD-07 bounds; durable persistence under evaluation |
+| KD-08 | Medium | Controlled-condition DNS resolution + per-redirect revalidation not implemented — matcher works on canonicalized host tokens only | Open — 13 adversarial scope tests verified; no network layer for actual DNS/redirect |
+| KD-09 | Medium | Evidence store: no immutable storage, no encryption at rest, no signed envelopes, no retention enforcement | Open — chain + tenant isolation + manifest verified; PLANNED for P13+ |
+| KD-10 | Medium | Emergency-stop is process-local: no cross-instance propagation, no worker kill-signal | Open — process-wide latch + audit trail + actor-required recovery; cross-instance PLANNED |
+
+Evidence: 95 unit + 21 API = 116/116 green (stable over 3 consecutive runs); solution build 0 warnings / 0 errors (with `-warnaserror`); Npgsql 8.0.0 vulnerability reported as known transitive-dependency risk, accepted; all quality gates pass.

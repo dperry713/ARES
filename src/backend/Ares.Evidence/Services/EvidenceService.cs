@@ -12,8 +12,9 @@ namespace Ares.Evidence.Services;
 /// storage, no encryption at rest, no signed export envelopes yet — but the
 /// hash chain + tenant isolation + independent manifest verification are real
 /// and tested. Anything beyond that is PLANNED, not claimed.
+/// Implements <see cref="IEvidenceService"/> for DI registration.
 /// </summary>
-public sealed class EvidenceService
+public sealed class EvidenceService : IEvidenceService
 {
     private readonly Dictionary<Guid, StoredRecord> _records = new();
     private readonly Dictionary<Guid, List<Guid>> _chains = new(); // engagement -> record ids in order

@@ -21,12 +21,12 @@ public class IntelligenceService : IIntelligenceService
 {
     private readonly IIntelligenceProvider _provider;
     private readonly IPolicyEngine _policyEngine;
-    private readonly EvidenceService _evidence;
+    private readonly IEvidenceService _evidence;
 
     public IntelligenceService(
         IIntelligenceProvider provider,
         IPolicyEngine policyEngine,
-        EvidenceService? evidence = null)
+        IEvidenceService? evidence = null)
     {
         _provider = provider;
         _policyEngine = policyEngine;

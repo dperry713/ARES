@@ -64,13 +64,13 @@ public static class AresPlatform
         if (!string.IsNullOrWhiteSpace(postgresEvidenceConnectionString))
         {
             var pgEvidenceService = new PostgresEvidenceService(postgresEvidenceConnectionString);
-            services.AddSingleton(typeof(EvidenceService), pgEvidenceService);
+            services.AddSingleton<IEvidenceService>(pgEvidenceService);
             Console.WriteLine($"Using PostgreSQL evidence store (connection: {postgresEvidenceConnectionString.Substring(0, Math.Min(30, postgresEvidenceConnectionString.Length))}...)");
         }
         else
         {
             Console.WriteLine("Using in-memory evidence store (PostgreSQL not configured)");
-            services.AddSingleton<EvidenceService>();
+            services.AddSingleton<IEvidenceService, EvidenceService>();
         }
 
         // ---- Credentials ---------------------------------------------------

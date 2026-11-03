@@ -45,12 +45,12 @@ public interface IVerificationService
 /// </summary>
 public sealed class VerificationService : IVerificationService
 {
-    private readonly EvidenceService _store;
+    private readonly IEvidenceService _store;
     // finding id -> independent check history (in-memory milestone).
     private readonly Dictionary<Guid, List<IndependentCheckResult>> _checks = new();
     private readonly object _lock = new();
 
-    public VerificationService(EvidenceService store)
+    public VerificationService(IEvidenceService store)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
     }
