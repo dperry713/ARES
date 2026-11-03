@@ -17,6 +17,24 @@ public sealed class PostgresStateJournal : IStateJournal, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         _connectionString = connectionString;
+
+        // Ensure schema exists on first use (best-effort; admin should run migrations in production)
+        using var conn = new NpgsqlConnection(_connectionString);
+        conn.OpenAsync().GetAwaiter().GetResult();
+        using var cmd = new NpgsqlCommand(@"
+            CREATE TABLE IF NOT EXISTS state_journal (
+                sequence BIGINT PRIMARY KEY,
+                stream TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                occurred_at TIMESTAMPTZ NOT NULL,
+                prev_hash TEXT NOT NULL,
+                hash TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_state_journal_stream ON state_journal (stream);
+            CREATE INDEX IF NOT EXISTS idx_state_journal_seq ON state_journal (sequence);", conn);
+        cmd.ExecuteNonQueryAsync().GetAwaiter().GetResult();
     }
 
     public async ValueTask DisposeAsync()
@@ -31,6 +49,41 @@ public sealed class PostgresStateJournal : IStateJournal, IAsyncDisposable
     }
 
     #region IStateJournal Members
+
+    JournalEntry IStateJournal.Append(string stream, string eventType, string payload, string? actor = null)
+    {
+        return AppendAsync(stream, eventType, payload, actor).GetAwaiter().GetResult();
+    }
+
+    IReadOnlyList<JournalEntry> IStateJournal.Read(string streamPrefix = "", long afterSequence = 0, int limit = 1000)
+    {
+        return ReadAsync(streamPrefix, afterSequence, limit).GetAwaiter().GetResult();
+    }
+
+    IReadOnlyList<string> IStateJournal.ListStreams(string prefix = "")
+    {
+        return ListStreamsAsync(prefix).GetAwaiter().GetResult();
+    }
+
+    ChainVerification IStateJournal.VerifyChain()
+    {
+        return VerifyChainAsync().GetAwaiter().GetResult();
+    }
+
+    long IStateJournal.Count
+    {
+        get
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand("SELECT COUNT(1) FROM state_journal", conn);
+            return (long)cmd.ExecuteScalar()!;
+        }
+    }
+
+    #endregion
+
+    #region IStateJournal Async Members
 
     public async ValueTask<JournalEntry> AppendAsync(string stream, string eventType, string payload, string? actor = null)
     {
@@ -156,41 +209,6 @@ public sealed class PostgresStateJournal : IStateJournal, IAsyncDisposable
         }
 
         return JournalChain.Verify(entries);
-    }
-
-    #endregion
-
-    #region Legacy Synchronous Members (for backward compatibility)
-
-    JournalEntry IStateJournal.Append(string stream, string eventType, string payload, string? actor = null)
-    {
-        throw new NotImplementedException("Use AppendAsync for non-blocking operation");
-    }
-
-    IReadOnlyList<JournalEntry> IStateJournal.Read(string streamPrefix = "", long afterSequence = 0, int limit = 1000)
-    {
-        throw new NotImplementedException("Use ReadAsync for non-blocking operation");
-    }
-
-    IReadOnlyList<string> IStateJournal.ListStreams(string prefix = "")
-    {
-        throw new NotImplementedException("Use ListStreamsAsync for non-blocking operation");
-    }
-
-    ChainVerification IStateJournal.VerifyChain()
-    {
-        throw new NotImplementedException("Use VerifyChainAsync for non-blocking operation");
-    }
-
-    long IStateJournal.Count
-    {
-        get
-        {
-            using var conn = new NpgsqlConnection(_connectionString);
-            conn.Open();
-            using var cmd = new NpgsqlCommand("SELECT COUNT(1) FROM state_journal", conn);
-            return (long)cmd.ExecuteScalar()!;
-        }
     }
 
     #endregion
