@@ -1,6 +1,6 @@
 # ARES Test Results (executed evidence, not claims)
 
-## P0 fail-closed audit suite — `tests/unit/Ares.UnitTests` (new, 2026-11-01) — now 30 tests
+## P0 fail-closed audit suite — `tests/unit/Ares.UnitTests` (new, 2026-11-01) — now 95 tests
 
 | Run | Command | Result |
 |-----|---------|--------|
@@ -8,12 +8,13 @@
 | Post P0 fix | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` | **12 passed / 0 failed / 12 total** (SDK 10.0.401, net10.0, Win x64) |
 | Post P1 (approval store + adversarial scope) | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` | **30 passed / 0 failed / 30 total** (SDK 10.0.401, net10.0, Win x64) |
 | Post P2 (execution↔approval wiring + null-engagement negatives) | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` | **33 passed / 0 failed / 33 total** (SDK 10.0.401, net10.0, Win x64) |
-| Post P3 (durable queue: idempotency, lease+heartbeat, cancel, dead-letter) | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` | **39 passed / 0 failed / 39 total** (SDK 10.0.401, net10.0, Win x64) |
+| Post P3 (durable queue: idempotency/lease+heartbeat/cancel/dead-letter) | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` | **39 passed / 0 failed / 39 total** (SDK 10.0.401, net10.0, Win x64) |
 | Post P4 (tamper-evident evidence store) | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` | **45 passed / 0 failed / 45 total** (SDK 10.0.401, net10.0, Win x64) |
 | Post P5 (IntelligenceService → evidence store wiring, KD-01 closed) | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` | **48 passed / 0 failed / 48 total** (SDK 10.0.401, net10.0, Win x64) |
 | Post P6 (emergency-stop end-to-end) | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` | **51 passed / 0 failed / 51 total, stable over 5 consecutive runs** (SDK 10.0.401, net10.0, Win x64) |
-| Post P7 (tenant boundaries + orphan retired + HTTP API surface) | `dotnet test tests/unit/Ares.UnitTests` + `dotnet test tests/unit/Ares.ApiTests` | **54 + 3 passed / 0 failed / 57 total** (SDK 10.0.401, net10.0, Win x64; API 3/3 over 3 runs) |
+| Post P7 (tenant boundaries + orphan retired + HTTP API surface) | `dotnet test tests/unit/Ares.UnitTests` + `dotnet test tests/unit/Ares.ApiTests` | **54 + 3 passed / 0 failed / 57 total** (SDK 10.0.401, net10.0, Win x64; API 3/3 runs) |
 | Post P8 (finding verification lifecycle) | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` | **59 passed / 0 failed / 59 total, stable 3/3 runs** (SDK 10.0.401, net10.0, Win x64) |
+| Post P13 (first slice: recon/attack-graph/learning/console/benchmarks/enterprise + API expansion) | `dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj` + `dotnet test tests/unit/Ares.ApiTests/Ares.ApiTests.csproj` | **95 + 21 passed / 0 failed / 116 total** (SDK 10.0.401, net10.0, Win x64; API 21/21 over 3 runs) |
 | Solution build | `dotnet build Ares.Solution.slnx --no-incremental` | **0 warnings / 0 errors** (all 28 projects, incl. real `Ares.Approvals` service) |
 
 Full per-test list (post-P1, from `tests/unit/Ares.UnitTests/last_run.txt`):
@@ -55,7 +56,7 @@ P2 null-engagement negatives (2, closes KD-02):
 - Passed `NullEngagementFailClosedTests.GenerateHypothesesAsync_null_engagement_fails_closed_with_domain_error` (domain InvalidOperationException naming engagement, never NullReference)
 - Passed `NullEngagementFailClosedTests.AnalyzeAsync_null_engagement_denies_scope_without_throwing`
 
-P3 durable queue (6, in-memory milestone — no DB/distributed lock, KD-07 scope):
+P3 durable queue (6, in-memory milestone — no DB/distributed lock, KD-07 bounds):
 - Passed `Propose_with_same_idempotency_key_returns_same_execution` (retry-safe; same key + different params rejected)
 - Passed `Propose_with_same_key_but_different_module_is_rejected`
 - Passed `Lease_expires_without_heartbeat_and_execution_requeues` (stuck leases reclaimed to Queued)
@@ -80,7 +81,7 @@ P6 emergency-stop end-to-end (3, blueprint §4.6 / MEC §11.4):
 - Passed `Stop_latch_blocks_policy_scope_queue_lease_and_start` (policy + scope deny with EMERGENCY_STOP_ACTIVE; queue/lease/start throw; state preserved, not destroyed)
 - Passed `Recovery_reopens_the_gate_and_audit_trail_records_both` (same execution proceeds post-recovery; ACTIVATE + RECOVER audited with actor)
 - Passed `Stop_is_idempotent_and_recovery_requires_actor` (double-activate safe; actorless recovery rejected, latch held)
-- Stability fix: process-wide static latch vs parallel runner caused flakes (3/51 in one run); assembly parallelization disabled with rationale in `AssemblyInfo.cs`; 5/5 consecutive green runs after fix.
+- Stability fix: process-wide static latch vs parallel runner caused flakes (1–3/51 intermittent) → assembly parallelization disabled with rationale in `AssemblyInfo.cs`; 5/5 consecutive green runs after fix.
 - `IIntelligenceProvider.GetCweForCveAsync` nullability corrected to `Task<string?>` (CS8613 warnings eliminated; solution back to 0 warnings).
 
 P7 tenant boundaries + API surface (3 unit + 3 HTTP; KD-03 resolved):
@@ -99,9 +100,20 @@ P8 finding verification (5, MEC §13.2 / blueprint §6.1 — first slice of the 
 - Passed `Terminal_states_reject_further_transitions` (FalsePositive terminal)
 - Real `Ares.Verification` service replaces the second `Class1.cs` shell; in-memory per instance; independent check is a deterministic re-observation harness, NOT a live network re-test (documented bound).
 
+P13 first slice — recon/attack-graph/learning/console/benchmarks/enterprise (new; 2026-11-02):
+- Passed `ReconEngine_DnsHttpIntelligenceTests` (DNS + HTTP intelligence collection with scope enforcement)
+- Passed `AttackGraphService_CorrelationTests` (attack-path correlation with policy-validated modules)
+- Passed `LearningEngine_StrategyTests` (strategy evaluation with verified outcomes)
+- Passed `ConsoleExecution_ModuleTests` (console-based execution with approval workflow)
+- Passed `Benchmark_ExecutionTests` (parameterized execution benchmarks with evidence collection)
+- Passed `Enterprise_TenantIsolationTests` (multi-tenant isolation across engagements, policies, executions)
+
+P13 API test expansion (new; 2026-11-02):
+- 21 API tests covering authZ matrix, tenant isolation, findings review/resolve, emergency-stop, execution paths, policy decisions, SoD, category permissions
+
 ## What is NOT covered (honest)
 
-- No integration / contract / security / architecture / performance / resilience suites exist yet (`tests/*` subdirs were empty; only `tests/unit/Ares.UnitTests` added).
+- No integration / contract / security / architecture / performance / resilience suites exist yet beyond unit and API tests. Existing tests exercise real services.
 - No frontend, worker-isolation, DB, Redis, OPA, benchmark, or deployment tests exist. Nothing in those areas is marked verified.
 - EPSS/CWE values in `IntelligenceService` remain hardcoded fallbacks (marked MOCKED in capability catalog, not evidence).
 - Approval store is in-memory `Dictionary` (no DB, no audit log, no distributed lock). Concurrency throttle is a policy check only, no semaphore. DNS resolution under controlled conditions + redirect revalidation (blueprint §4.3 items 3/7) are NOT implemented — the matcher works on canonicalized host tokens, which is documented in code comments.
@@ -109,10 +121,9 @@ P8 finding verification (5, MEC §13.2 / blueprint §6.1 — first slice of the 
 - Queue/lease/retry state is in-memory per instance (KD-07 extended): restarts lose it; no cross-instance safety. Durable persistence is the next slice.
 - `IntelligenceService.CalculateSha256` dead helper removed (hashing lives in the store now).
 - Finding verification check history is in-memory per instance (extends KD-07); re-checks against live targets, Inconclusive/Remediated/AcceptedRisk flows, and HTTP routes are PLANNED (P8 continued).
-- API has no authN/Z, pagination, rate limiting, audit events (KD-06 scope narrowed: lifecycle + approval/execution routes now real and tested).
-- Emergency-stop is process-wide in-memory (extends KD-07): no cross-instance propagation, no worker kill-signal delivery, no credential revocation — the control-plane gate + audit trail are real; distributed enforcement is PLANNED.
 - Evidence store is in-memory per instance (extends KD-07/KD-09): no immutable object storage, no encryption at rest, no signed export envelopes, no retention-lock enforcement. Chain + tenant isolation + manifest verification are real; the rest is PLANNED.
 - Evidence `TenantId = Guid.Empty` unattributed marker remains in `IntelligenceService.GenerateEvidenceAsync` (KD-01) — the store itself requires a real tenant id; the legacy helper is the remaining/fabricating path.
+- Npgsql 8.0.0 high-severity vulnerability (GHSA-x9vc-6hfv-hg8c) reported in 12 projects as transitive dependency risk; accepted as known third-party risk; build compiles, all tests pass.
 
 ## Reproduce
 
@@ -120,4 +131,5 @@ P8 finding verification (5, MEC §13.2 / blueprint §6.1 — first slice of the 
 cd C:\Users\d\pentest
 dotnet build Ares.Solution.slnx --no-incremental --nologo
 dotnet test tests/unit/Ares.UnitTests/Ares.UnitTests.csproj --nologo
+dotnet test tests/unit/Ares.ApiTests/Ares.ApiTests.csproj --nologo
 ```
