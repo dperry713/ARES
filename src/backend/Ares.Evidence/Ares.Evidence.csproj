@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ares.Domain\Ares.Domain.csproj" />
+    <PackageReference Include="Npgsql" />
+    <PackageVersion Include="Npgsql" />
   </ItemGroup>
 
 </Project>

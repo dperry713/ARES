@@ -58,6 +58,7 @@ app.MapAuditEndpoints();
 app.MapPolicyEndpoints();
 app.MapSystemEndpoints();
 app.MapTenantEndpoints();
+app.MapFindingsEndpoints();
 
 if (!string.IsNullOrEmpty(AresStartup.BootstrapKey))
 {

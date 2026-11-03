@@ -39,9 +39,39 @@ public static class AresPlatform
         Directory.CreateDirectory(dataDirectory);
 
         var journalPath = Path.Combine(dataDirectory, "ares.journal.db");
-        var journal = new SqliteStateJournal(journalPath);
-        services.AddSingleton<IStateJournal>(journal);
-        services.AddSingleton<IAuditLog, JournalAuditLog>();
+
+        // PostgreSQL-backed state journal (optional, fallback to SQLite)
+        var postgresConnectionString = config["ARES_POSTGRES_CONNECTION_STRING"];
+        IStateJournal journal;
+        if (!string.IsNullOrWhiteSpace(postgresConnectionString))
+        {
+            var pgJournal = new PostgresStateJournal(postgresConnectionString);
+            journal = pgJournal;
+            services.AddSingleton<IStateJournal>(pgJournal);
+            services.AddSingleton<IAuditLog, JournalAuditLog>();
+            Console.WriteLine($"Using PostgreSQL state journal (connection: {postgresConnectionString.Substring(0, Math.Min(30, postgresConnectionString.Length))}...)");
+        }
+        else
+        {
+            journal = new SqliteStateJournal(journalPath);
+            services.AddSingleton<IStateJournal>(journal);
+            services.AddSingleton<IAuditLog, JournalAuditLog>();
+            Console.WriteLine("Using SQLite state journal (local file: " + journalPath + ")");
+        }
+
+        // PostgreSQL-backed evidence store (optional)
+        var postgresEvidenceConnectionString = config["ARES_POSTGRES_EVIDENCE_CONNECTION_STRING"];
+        if (!string.IsNullOrWhiteSpace(postgresEvidenceConnectionString))
+        {
+            var pgEvidenceService = new PostgresEvidenceService(postgresEvidenceConnectionString);
+            services.AddSingleton(typeof(EvidenceService), pgEvidenceService);
+            Console.WriteLine($"Using PostgreSQL evidence store (connection: {postgresEvidenceConnectionString.Substring(0, Math.Min(30, postgresEvidenceConnectionString.Length))}...)");
+        }
+        else
+        {
+            Console.WriteLine("Using in-memory evidence store (PostgreSQL not configured)");
+            services.AddSingleton<EvidenceService>();
+        }
 
         // ---- Credentials ---------------------------------------------------
         var authOptions = ConfiguredApiKeyStore.LoadOptions(config, environment.IsProduction());
